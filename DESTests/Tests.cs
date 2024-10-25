@@ -55,10 +55,9 @@ public class Tests
     public void BlocksArePaddedWithZeroBits()
     {
         // Arrange 
-        var blocks = Utilities.CreateBlocks("Hello World!");
         
         // Act
-        
+        var blocks = Utilities.CreateBlocks("Hello World!");
         
         // Assert
         Assert.That(blocks.ToList()[1].Length, Is.EqualTo(64));
