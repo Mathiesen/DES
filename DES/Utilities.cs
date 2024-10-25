@@ -12,20 +12,20 @@ public class Utilities
 
     public static IEnumerable<BitArray> CreateBlocks(string input)
     {
-        int chunckSize = 8;
+        int chunkSize = 8;
         var blocks = new List<BitArray>();
         var byteArray = ConvertToByteArray(input);
-        
-        for (int i = 0; i <= byteArray.Length; i += chunckSize)
+    
+        for (int i = 0; i < byteArray.Length; i += chunkSize)
         {
-            IEnumerable<byte> chunck = byteArray.Skip(i).Take(chunckSize);
+            var chunk = byteArray.Skip(i).Take(chunkSize).ToList();
 
-            while (chunck.Count() < 8)
+            if (chunk.Count < chunkSize)
             {
-                chunck = chunck.Append<byte>(00);
+                chunk.AddRange(new byte[chunkSize - chunk.Count]);
             }
-            
-            blocks.Add(CreateSingleBlock(chunck));
+        
+            blocks.Add(CreateSingleBlock(chunk));
         }
 
         return blocks;
@@ -46,15 +46,15 @@ public class Utilities
     public static BitArray PermutateKey(string key)
     {
         var keyAsBytes = ConvertToByteArray(key);
-        var bits = new BitArray(keyAsBytes);
-        var permutatedKey = new bool[56];
+        var keyBits = new BitArray(keyAsBytes);
+        var permutatedKey = new BitArray(56);
 
-        for (int i = 0; i < Tables.PermutedChoiceOne.Length; i++)
+        for (var i = 0; i < Tables.PermutedChoiceOne.Length; i++)
         {
-            permutatedKey[i] = bits.Get(Tables.PermutedChoiceOne[i]);
+            permutatedKey[i] = keyBits[Tables.PermutedChoiceOne[i]];
         }
 
-        return new BitArray(permutatedKey);
+        return permutatedKey;
     }
     
     private static byte[] BitArrayToByteArray(BitArray bitArray)
@@ -82,10 +82,10 @@ public class Utilities
     public static string ConvertBlocksToString(IEnumerable<BitArray> blocks)
     {
         StringBuilder result = new StringBuilder();
-        for (int i = 0; i < blocks.Count(); i++)
+
+        foreach (var block in blocks)
         {
-            var block = blocks.ElementAt(i);
-            var s = Encoding.UTF8.GetString(BitArrayToByteArray(block));
+            string s = Encoding.UTF8.GetString(BitArrayToByteArray(block));
             result.Append(s);
         }
 
@@ -94,23 +94,24 @@ public class Utilities
 
     public static (BitArray left, BitArray right) Split(BitArray bits)
     {
-        var leftBytes = new bool[bits.Length / 2];
-        var rightBytes = new bool[bits.Length / 2];
-        
-        for (var i = 0; i < bits.Length / 2; i++)
+        int halfLength = bits.Length / 2;
+    
+        var leftBytes = new bool[halfLength];
+        var rightBytes = new bool[halfLength];
+
+        for (var i = 0; i < halfLength; i++)
         {
             leftBytes[i] = bits[i];
-            var idx = 0;
-            for (var j = bits.Length / 2; j < bits.Length; j++)
-            {
-                rightBytes[idx] = bits[j];
-                idx++;
-            }
         }
-        
+
+        for (var i = 0; i < halfLength; i++)
+        {
+            rightBytes[i] = bits[i + halfLength];
+        }
+
         var left = new BitArray(leftBytes);
         var right = new BitArray(rightBytes);
-        
-        return new ValueTuple<BitArray, BitArray>(left, right);
+
+        return (left, right);
     }
 }
