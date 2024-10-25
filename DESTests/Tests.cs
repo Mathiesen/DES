@@ -107,7 +107,7 @@ public class Tests
     }
 
     [Test]
-    public void PermutedKeyIsSplitInTwo()
+    public void CanSplitBits()
     {
         // Arrange 
         BitArray bitArray = new BitArray([true, false, true, false, false, false, true, false]);
