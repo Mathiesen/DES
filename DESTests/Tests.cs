@@ -58,10 +58,10 @@ public class Tests
         var blocks = Utilities.CreateBlocks("Hello World!");
         
         // Act
-        var bitBlocks = Utilities.ConvertBytesToBits(blocks);
+        
         
         // Assert
-        Assert.That(bitBlocks[1].Length, Is.EqualTo(64));
+        Assert.That(blocks.ToList()[1].Length, Is.EqualTo(64));
     }
     
     [Test]

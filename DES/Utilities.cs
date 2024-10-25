@@ -10,10 +10,10 @@ public class Utilities
         return Encoding.UTF8.GetBytes(input);
     }
 
-    public static IEnumerable<IEnumerable<byte>> CreateBlocks(string input)
+    public static IEnumerable<BitArray> CreateBlocks(string input)
     {
         int chunckSize = 8;
-        var blocks = new List<IEnumerable<byte>>();
+        var blocks = new List<BitArray>();
         var byteArray = ConvertToByteArray(input);
         
         for (int i = 0; i <= byteArray.Length; i += chunckSize)
@@ -25,15 +25,15 @@ public class Utilities
                 chunck = chunck.Append<byte>(00);
             }
             
-            blocks.Add(chunck);
+            blocks.Add(CreateSingleBlock(chunck));
         }
 
         return blocks;
     }
 
-    public static BitArray CreateSingleBlock(byte[] input)
+    private static BitArray CreateSingleBlock(IEnumerable<byte> input)
     {
-        return new BitArray(input);
+        return new BitArray(input.ToArray());
     }
 
     public static List<BitArray> ConvertBytesToBits(IEnumerable<IEnumerable<byte>> blocks)
@@ -79,13 +79,13 @@ public class Utilities
         return Encoding.UTF8.GetString(bytes);
     }
 
-    public static string ConvertBlocksToString(IEnumerable<IEnumerable<byte>> blocks)
+    public static string ConvertBlocksToString(IEnumerable<BitArray> blocks)
     {
         StringBuilder result = new StringBuilder();
         for (int i = 0; i < blocks.Count(); i++)
         {
             var block = blocks.ElementAt(i);
-            var s = Encoding.UTF8.GetString(block.ToArray());
+            var s = Encoding.UTF8.GetString(BitArrayToByteArray(block));
             result.Append(s);
         }
 
