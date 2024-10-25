@@ -92,18 +92,18 @@ public class Utilities
         return result.ToString().TrimEnd('\0');
     }
 
-    public static (BitArray left, BitArray right) Split(BitArray permutatedKey)
+    public static (BitArray left, BitArray right) Split(BitArray bits)
     {
-        var leftBytes = new bool[permutatedKey.Length / 2];
-        var rightBytes = new bool[permutatedKey.Length / 2];
+        var leftBytes = new bool[bits.Length / 2];
+        var rightBytes = new bool[bits.Length / 2];
         
-        for (var i = 0; i < permutatedKey.Length / 2; i++)
+        for (var i = 0; i < bits.Length / 2; i++)
         {
-            leftBytes[i] = permutatedKey[i];
+            leftBytes[i] = bits[i];
             var idx = 0;
-            for (var j = permutatedKey.Length / 2; j < permutatedKey.Length; j++)
+            for (var j = bits.Length / 2; j < bits.Length; j++)
             {
-                rightBytes[idx] = permutatedKey[j];
+                rightBytes[idx] = bits[j];
                 idx++;
             }
         }
