@@ -43,19 +43,7 @@ public class Utilities
         return bits;
     }
 
-    public static BitArray PermutateKey(string key)
-    {
-        var keyAsBytes = ConvertToByteArray(key);
-        var keyBits = new BitArray(keyAsBytes);
-        var permutatedKey = new BitArray(56);
 
-        for (var i = 0; i < Tables.PermutedChoiceOne.Length; i++)
-        {
-            permutatedKey[i] = keyBits[Tables.PermutedChoiceOne[i]];
-        }
-
-        return permutatedKey;
-    }
     
     private static byte[] BitArrayToByteArray(BitArray bitArray)
     {
@@ -92,26 +80,26 @@ public class Utilities
         return result.ToString().TrimEnd('\0');
     }
 
-    public static (BitArray left, BitArray right) Split(BitArray bits)
+    public static BitArray LeftShift(BitArray bits, int numberOfShifts)
     {
-        int halfLength = bits.Length / 2;
-    
-        var leftBytes = new bool[halfLength];
-        var rightBytes = new bool[halfLength];
+        int length = bits.Length;
+        BitArray result = new BitArray(length);
 
-        for (var i = 0; i < halfLength; i++)
+        for (int i = 0; i < length; i++)
         {
-            leftBytes[i] = bits[i];
+            int newIndex = (i - numberOfShifts + length) % length;
+            result[newIndex] = bits[i];
         }
 
-        for (var i = 0; i < halfLength; i++)
-        {
-            rightBytes[i] = bits[i + halfLength];
-        }
+        return result;
+    }
 
-        var left = new BitArray(leftBytes);
-        var right = new BitArray(rightBytes);
-
-        return (left, right);
+    public static BitArray Concatenate(BitArray leftBits, BitArray rightBits)
+    {
+        var bools = new bool[leftBits.Length + rightBits.Length];
+        leftBits.CopyTo(bools, 0);
+        rightBits.CopyTo(bools, leftBits.Length);
+        
+        return new BitArray(bools);
     }
 }

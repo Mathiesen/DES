@@ -6,9 +6,12 @@ namespace DESTests;
 
 public class Tests
 {
+    KeySchedule keySchedule;
+    
     [SetUp]
     public void Setup()
     {
+        keySchedule = new KeySchedule();
     }
 
     [Test]
@@ -70,7 +73,7 @@ public class Tests
         string key = "TEST1234";
 
         // Act
-        var keyAsBits = Utilities.PermutateKey(key);
+        var keyAsBits = keySchedule.PermutateKey(key, Tables.PermutedChoiceOne);
 
         // Assert
         Assert.That(keyAsBits.Length, Is.EqualTo(56));
@@ -106,6 +109,14 @@ public class Tests
     }
 
     [Test]
+    public void RunTransform()
+    {
+        keySchedule.Transform(
+            new BitArray([true, false, true, false]), 
+            new BitArray([false, false, true, false]));
+    }
+
+    [Test]
     public void CanSplitBits()
     {
         // Arrange 
@@ -114,10 +125,41 @@ public class Tests
         BitArray actualRight = new BitArray([false, false, true, false]);
         
         // Act
-        (BitArray resultLeft, BitArray resultRight) = Utilities.Split(bitArray);
+        (BitArray resultLeft, BitArray resultRight) = keySchedule.Split(bitArray);
 
         // Assert
         Assert.That(actualLeft, Is.EqualTo(resultLeft));
         Assert.That(actualRight, Is.EqualTo(resultRight));
+    }
+    
+    [Test]
+    public void CanConcatenateBitArrays()
+    {
+        // Arrange
+        var left = new BitArray([false, false, true, false, false, false, true, false]);
+        var right = new BitArray([true, false, true, true, true, false, true, true]);
+        
+        var expected = new BitArray([false, false, true, false, false, false, true, 
+            false, true, false, true, true, true, false, true, true]);
+        
+        // Act
+        var actual = Utilities.Concatenate(left, right);
+        
+        // Assert
+        Assert.That(actual, Is.EqualTo(expected));
+    }
+
+    [TestCase(1, new[] { false, true, false, false, false, true, false, true })]
+    [TestCase(2, new[] { true, false, false, false, true, false, true, false })]
+    public void LeftShiftBits(int shift, bool[] expected)
+    {
+        // Arrange
+        var bits = new BitArray([true, false, true, false, false, false, true, false]);
+        
+        // Act
+        BitArray actual = Utilities.LeftShift(bits, shift);
+
+        // Assert
+        Assert.That(actual, Is.EqualTo(new BitArray(expected)));
     }
 }
