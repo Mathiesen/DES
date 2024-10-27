@@ -10,13 +10,18 @@ public class KeySchedule
     {
         var keyAsBytes = Utilities.ConvertToByteArray(key);
         var keyBits = new BitArray(keyAsBytes);
-        var permutatedKey = new BitArray(56);
+        return PermutateKey(keyBits, permutationTable);
+    }
+
+    public BitArray PermutateKey(BitArray key, byte[] permutationTable)
+    {
+        var permutatedKey = new BitArray(permutationTable.Length);
 
         for (var i = 0; i < permutationTable.Length; i++)
         {
-            permutatedKey[i] = keyBits[Tables.PermutedChoiceOne[i]];
+            permutatedKey[i] = key[permutationTable[i]];
         }
-
+        
         return permutatedKey;
     }
     
@@ -43,7 +48,7 @@ public class KeySchedule
         return (left, right);
     }
 
-    public void RunKeySchedule(string key)
+    public void Run(string key)
     {
         var permutatedKey = PermutateKey(key, Tables.PermutedChoiceOne);
         var splitedKey = Split(permutatedKey);
@@ -58,8 +63,11 @@ public class KeySchedule
         {
             leftShifted = Utilities.LeftShift(leftShifted, Tables.Shifts[i]);
             rightShifted = Utilities.LeftShift(rightShifted, Tables.Shifts[i]);
+
+            var concatenatedKey = Utilities.Concatenate(leftShifted, rightShifted);
+            var permutatedKey = PermutateKey(concatenatedKey, Tables.PermutedChoiceTwo);
             
-            keys.Add(i, Utilities.Concatenate(leftShifted, rightShifted));
+            keys.Add(i, permutatedKey);
         }
     }
 }

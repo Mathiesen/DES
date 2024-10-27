@@ -109,11 +109,9 @@ public class Tests
     }
 
     [Test]
-    public void RunTransform()
+    public void RunKeySchedule()
     {
-        keySchedule.Transform(
-            new BitArray([true, false, true, false]), 
-            new BitArray([false, false, true, false]));
+        keySchedule.Run("TEST1234");
     }
 
     [Test]
