@@ -73,7 +73,7 @@ public class Tests
         string key = "TEST1234";
 
         // Act
-        var keyAsBits = keySchedule.PermutateKey(key, Tables.PermutedChoiceOne);
+        var keyAsBits = Utilities.Permutate(key, Tables.PermutedChoiceOne);
 
         // Assert
         Assert.That(keyAsBits.Length, Is.EqualTo(56));
@@ -123,7 +123,7 @@ public class Tests
         BitArray actualRight = new BitArray([false, false, true, false]);
         
         // Act
-        (BitArray resultLeft, BitArray resultRight) = keySchedule.Split(bitArray);
+        (BitArray resultLeft, BitArray resultRight) = Utilities.Split(bitArray);
 
         // Assert
         Assert.That(actualLeft, Is.EqualTo(resultLeft));
@@ -145,6 +145,53 @@ public class Tests
         
         // Assert
         Assert.That(actual, Is.EqualTo(expected));
+    }
+
+    [Test]
+    public void Expand_ShouldReturnCorrectExpandedBitArray()
+    {
+        // Arrange
+        BitArray bits = new BitArray([true, false, true, false, true]);
+        Tables.Expansion = [0, 2, 4, 1, 3, 0];
+        BitArray expectedResult = new BitArray([true, true, true, false, false, true]);
+
+        // Act
+        BitArray result = Utilities.Expand(bits);
+
+        // Assert
+        Assert.That(result.Length, Is.EqualTo(expectedResult.Length), "Resulting BitArray length is incorrect.");
+
+        for (int i = 0; i < expectedResult.Length; i++)
+        {
+            Assert.That(result[i], Is.EqualTo(expectedResult[i]), $"Bit at position {i} is incorrect.");
+        }
+    }
+
+    [Test]
+    public void CanReduce6BitsTo4BitsBySBox()
+    {
+        // Arrange
+        var expected = new bool[]{true, true, true, true};
+        // Act
+        var actual = Utilities.ReduceToFourBits(Tables.SBoxOne, new bool[]{true, false, false, false, false, true});
+        
+        // Assert
+        Assert.That(actual, Is.EqualTo(expected));
+    }
+
+    [Test]
+    public void Split_CanSplit48BitsInto8Times6Bits()
+    {
+        // Arrange
+        var text = "48bits";
+        var bytes = Utilities.ConvertToByteArray(text);
+        var bits = Utilities.ConvertBytesToBits(bytes);
+
+        // Act
+        var splittet = Utilities.Split(bits, 6);
+
+        // Assert
+        Assert.That(splittet.Count(), Is.EqualTo(8));
     }
 
     [TestCase(1, new[] { false, true, false, false, false, true, false, true })]
