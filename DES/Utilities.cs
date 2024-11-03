@@ -10,66 +10,62 @@ public class Utilities
         return Encoding.UTF8.GetBytes(input);
     }
 
-    public static byte[] ConvertToByteArray(BitArray input)
-    {
-        byte[] bytes = new byte[input.Length];
-        input.CopyTo(bytes, 0);
-        return bytes;
-    }
-
-    public static IEnumerable<BitArray> CreateBlocks(string input)
+    public static IEnumerable<bool[]> CreateBlocks(byte[] byteArray)
     {
         int chunkSize = 8;
-        var blocks = new List<BitArray>();
-        var byteArray = ConvertToByteArray(input);
-    
+        var blocks = new List<bool[]>();
+        
+        int paddedLength = ((byteArray.Length + chunkSize - 1) / chunkSize) * chunkSize;
+        Array.Resize(ref byteArray, paddedLength);
+
         for (int i = 0; i < byteArray.Length; i += chunkSize)
         {
-            var chunk = byteArray.Skip(i).Take(chunkSize).ToList();
-
-            if (chunk.Count < chunkSize)
-            {
-                chunk.AddRange(new byte[chunkSize - chunk.Count]);
-            }
-        
-            blocks.Add(CreateSingleBlock(chunk));
+            var chunk = byteArray.Skip(i).Take(chunkSize).ToArray();
+            blocks.Add(ByteArrayToBoolArray(chunk));
         }
 
         return blocks;
     }
 
-    private static BitArray CreateSingleBlock(IEnumerable<byte> input)
+    public static bool[] ConvertBytesToBits(IEnumerable<byte> bytes)
     {
-        return new BitArray(input.ToArray());
-    }
-
-    public static List<BitArray> ConvertBytesToBits(IEnumerable<IEnumerable<byte>> blocks)
-    {
-        var bits = new List<BitArray>();
-        blocks.ToList().ForEach(x => bits.Add(new BitArray(x.ToArray())));
-        return bits;
-    }
-
-    public static BitArray ConvertBytesToBits(IEnumerable<byte> bytes)
-    {
-        return new BitArray(bytes.ToArray());
+        return ByteArrayToBoolArray(bytes.ToArray());
     }
     
-    private static byte[] BitArrayToByteArray(BitArray bitArray)
+    private static byte[] BitArrayToByteArray(BitArray bits)
     {
-        int numBytes = (bitArray.Length + 7) / 8; 
-        byte[] byteArray = new byte[numBytes];
+        int numBytes = (bits.Length + 7) / 8;
+        byte[] bytes = new byte[numBytes];
 
-        for (int i = 0; i < bitArray.Length; i++)
+        for (int i = 0; i < bits.Length; i++)
         {
-            if (bitArray[i])
+            int byteIndex = i / 8;
+            int bitIndex = 7 - (i % 8); 
+            if (bits[i])
             {
-                byteArray[i / 8] |= (byte)(1 << (i % 8)); 
+                bytes[byteIndex] |= (byte)(1 << bitIndex);
             }
         }
 
-        return byteArray;
+        return bytes;
     }
+
+    public static bool[] ByteArrayToBoolArray(byte[] bytes)
+    {
+        int totalBits = bytes.Length * 8;
+        bool[] boolArray = new bool[totalBits];
+
+        for (int i = 0; i < bytes.Length; i++)
+        {
+            for (int bit = 0; bit < 8; bit++)
+            {
+                boolArray[i * 8 + bit] = ((bytes[i] >> bit) & 1) == 1;
+            }
+        }
+
+        return boolArray;
+    }
+        
 
     public static string BitArrayToString(BitArray keyAsBits)
     {
@@ -79,113 +75,36 @@ public class Utilities
 
     public static string ConvertBlocksToString(IEnumerable<BitArray> blocks)
     {
-        StringBuilder result = new StringBuilder();
+        var byteList = new List<byte>();
 
         foreach (var block in blocks)
         {
-            string s = Encoding.UTF8.GetString(BitArrayToByteArray(block));
-            result.Append(s);
+            byteList.AddRange(BitArrayToByteArray(block));
         }
-
-        return result.ToString().TrimEnd('\0');
-    }
-
-    public static BitArray LeftShift(BitArray bits, int numberOfShifts)
-    {
-        int length = bits.Length;
-        BitArray result = new BitArray(length);
-
-        for (int i = 0; i < length; i++)
-        {
-            int newIndex = (i - numberOfShifts + length) % length;
-            result[newIndex] = bits[i];
-        }
-
-        return result;
-    }
-
-    public static BitArray Concatenate(BitArray leftBits, BitArray rightBits)
-    {
-        var bools = new bool[leftBits.Length + rightBits.Length];
-        leftBits.CopyTo(bools, 0);
-        rightBits.CopyTo(bools, leftBits.Length);
         
-        return new BitArray(bools);
+        return Encoding.UTF8.GetString(byteList.ToArray()).TrimEnd('\0');
     }
     
-    public static BitArray Permutate(string key, byte[] permutationTable)
+    public static bool[] Permutate(string key, byte[] permutationTable)
     {
         var keyAsBytes = ConvertToByteArray(key);
-        var keyBits = new BitArray(keyAsBytes);
+        var keyBits = ByteArrayToBoolArray(keyAsBytes);
         return Permutate(keyBits, permutationTable);
     }
 
-    public static BitArray Permutate(BitArray key, byte[] permutationTable)
+    public static bool[] Permutate(bool[] key, byte[] permutationTable)
     {
-        var permutatedKey = new BitArray(permutationTable.Length);
+        var permutatedKey = new bool[permutationTable.Length];
 
         for (var i = 0; i < permutationTable.Length; i++)
         {
-            permutatedKey[i] = key[permutationTable[i]];
+            permutatedKey[i] = key[permutationTable[i] - 1];
         }
         
         return permutatedKey;
     }
 
-    public static IEnumerable<bool[]> Split(BitArray bits, int numberOfBits)
-    {
-        var result = new List<bool[]>();
-        var bitsAsArray = new bool[bits.Length];
-        bits.CopyTo(bitsAsArray, 0);
 
-        for (int i = 0; i < bits.Length; i += numberOfBits)
-        {
-            var block = bitsAsArray.ToList().Skip(i).Take(numberOfBits);
-            result.Add(block.ToArray());
-        }
-
-        return result;
-    }
-    
-    public static (BitArray left, BitArray right) Split(BitArray bits)
-    {
-        int halfLength = bits.Length / 2;
-    
-        var leftBytes = new bool[halfLength];
-        var rightBytes = new bool[halfLength];
-
-        for (var i = 0; i < halfLength; i++)
-        {
-            leftBytes[i] = bits[i];
-        }
-
-        for (var i = 0; i < halfLength; i++)
-        {
-            rightBytes[i] = bits[i + halfLength];
-        }
-
-        var left = new BitArray(leftBytes);
-        var right = new BitArray(rightBytes);
-
-        return (left, right);
-    }
-
-    public static IEnumerable<BitArray> Partition(BitArray splitRight)
-    {
-        return null;
-    }
-
-    public static BitArray Expand(BitArray bits)
-    {
-        var newArray = new BitArray(Tables.Expansion.Length);
-
-        for (int i = 0; i < Tables.Expansion.Length; i++)
-        {
-            newArray[i] = bits[Tables.Expansion[i]];
-        }
-        
-        return newArray;
-    }
 
     public static bool[] ReduceToFourBits(byte[,] sbox, bool[] bits)
     {
@@ -199,28 +118,17 @@ public class Utilities
         byte b = sbox[row, column];
         var outputBits = new bool[4];
 
-        outputBits[0] = (b & 0b0001) != 0;
-        outputBits[1] = (b & 0b0010) != 0;
-        outputBits[2] = (b & 0b0100) != 0;
-        outputBits[3] = (b & 0b1000) != 0;
+        outputBits[0] = (b & 0b1000) != 0;
+        outputBits[1] = (b & 0b0100) != 0;
+        outputBits[2] = (b & 0b0010) != 0;
+        outputBits[3] = (b & 0b0001) != 0;
         
         return outputBits;
     }
-
-    public static BitArray ConcatBitArray(BitArray first, BitArray second)
+    
+    public static bool[] StringToBitArray(string input)
     {
-        var concatenated = new BitArray(first.Length + second.Length);
-
-        for (var i = 0; i < first.Length; i++)
-        {
-            concatenated[i] = first[i];
-        }
-
-        for (var j = 0; j < second.Length; j++)
-        {
-            concatenated[first.Length + j] = second[j];
-        }
-
-        return concatenated;
+        byte[] bytes = Encoding.UTF8.GetBytes(input);
+        return ByteArrayToBoolArray(bytes);
     }
 }

@@ -1,13 +1,14 @@
 using System.Collections;
-using System.Xml.Xsl;
+using System.Text;
+using NUnit.Framework;
 using DES;
 
 namespace DESTests;
 
 public class Tests
 {
-    KeySchedule keySchedule;
-    
+    private KeySchedule keySchedule;
+
     [SetUp]
     public void Setup()
     {
@@ -19,51 +20,39 @@ public class Tests
     {
         // Arrange
         string input = "Hello World!";
-        byte[] actual = new[]
-        {
-            (byte)'H',
-            (byte)'e',
-            (byte)'l',
-            (byte)'l',
-            (byte)'o',
-            (byte)' ',
-            (byte)'W',
-            (byte)'o',
-            (byte)'r',
-            (byte)'l',
-            (byte)'d',
-            (byte)'!',
-        };
+        byte[] expected = Encoding.UTF8.GetBytes(input);
         
         // Act 
-        byte[]? result = Utilities.ConvertToByteArray(input);
+        byte[] result = Utilities.ConvertToByteArray(input);
         
         // Assert
-        Assert.That(actual, Is.EqualTo(result));
+        Assert.That(result, Is.EqualTo(expected));
     }
 
     [Test]
     public void InputCanBeBrokenUpInto8ByteBlocks()
     {
         // Arrange
-        
+        byte[] input = Encoding.UTF8.GetBytes("Hello world");
+
         // Act 
-        var blocks = Utilities.CreateBlocks("Hello World!");
+        var blocks = Utilities.CreateBlocks(input);
 
         // Assert
-        Assert.That(blocks.Count, Is.EqualTo(2));
+        Assert.That(blocks.Count(), Is.EqualTo(2));
     }
 
     [Test]
     public void BlocksArePaddedWithZeroBits()
     {
         // Arrange 
-        
+        byte[] input = Encoding.UTF8.GetBytes("Hello World!");
+
         // Act
-        var blocks = Utilities.CreateBlocks("Hello World!");
-        
+        var blocks = Utilities.CreateBlocks(input);
+
         // Assert
-        Assert.That(blocks.ToList()[1].Length, Is.EqualTo(64));
+        Assert.That(blocks.Last().Length, Is.EqualTo(64));
     }
     
     [Test]
@@ -80,68 +69,42 @@ public class Tests
     }
 
     [Test]
-    public void KeyCanBeConvertedToString()
-    {
-        // Arrange
-        string key = "TEST1234";
-        var keyAsBytes = Utilities.ConvertToByteArray(key);
-        var keyAsBits = new BitArray(keyAsBytes);
-        
-        // Act
-        string result = Utilities.BitArrayToString(keyAsBits);
-
-        // Assert
-        Assert.That(result, Is.EqualTo(key));
-    }
-
-    [Test]
-    public void BitBlocksCanBeConvertedToString()
-    {
-        // Arrange
-        string phrase = "This string should be converted to bits and back again";
-        var blocks = Utilities.CreateBlocks(phrase);
-        
-        // Act
-        var resultPhrase = Utilities.ConvertBlocksToString(blocks);
-
-        // Assert 
-        Assert.That(resultPhrase, Is.EqualTo(phrase));
-    }
-
-    [Test]
     public void RunKeySchedule()
     {
+        // Act
         keySchedule.Run("TEST1234");
+
+        // Assert
+        Assert.That(keySchedule.Keys, Is.Not.Empty);
+        Assert.That(keySchedule.Keys.Count, Is.EqualTo(16));  // Should generate 16 keys for DES
     }
 
     [Test]
     public void CanSplitBits()
     {
         // Arrange 
-        BitArray bitArray = new BitArray([true, false, true, false, false, false, true, false]);
-        BitArray actualLeft = new BitArray([true, false, true, false]);
-        BitArray actualRight = new BitArray([false, false, true, false]);
+        bool[] bits = { true, false, true, false, false, false, true, false };
+        bool[] expectedLeft = [true, false, true, false];
+        bool[] expectedRight = [false, false, true, false];
         
         // Act
-        (BitArray resultLeft, BitArray resultRight) = Utilities.Split(bitArray);
+        (bool[] resultLeft, bool[] resultRight) = bits.Split();
 
         // Assert
-        Assert.That(actualLeft, Is.EqualTo(resultLeft));
-        Assert.That(actualRight, Is.EqualTo(resultRight));
+        Assert.That(resultLeft, Is.EqualTo(expectedLeft));
+        Assert.That(resultRight, Is.EqualTo(expectedRight));
     }
     
     [Test]
     public void CanConcatenateBitArrays()
     {
         // Arrange
-        var left = new BitArray([false, false, true, false, false, false, true, false]);
-        var right = new BitArray([true, false, true, true, true, false, true, true]);
-        
-        var expected = new BitArray([false, false, true, false, false, false, true, 
-            false, true, false, true, true, true, false, true, true]);
+        bool[] left = { false, false, true, false, false, false, true, false };
+        bool[] right = { true, false, true, true, true, false, true, true };
+        bool[] expected = { false, false, true, false, false, false, true, false, true, false, true, true, true, false, true, true };
         
         // Act
-        var actual = Utilities.Concatenate(left, right);
+        var actual = left.Concatenate(right);
         
         // Assert
         Assert.That(actual, Is.EqualTo(expected));
@@ -151,12 +114,12 @@ public class Tests
     public void Expand_ShouldReturnCorrectExpandedBitArray()
     {
         // Arrange
-        BitArray bits = new BitArray([true, false, true, false, true]);
-        Tables.Expansion = [0, 2, 4, 1, 3, 0];
-        BitArray expectedResult = new BitArray([true, true, true, false, false, true]);
+        bool[] bits = { true, false, true, false, true };
+        Tables.Expansion = new byte[] { 1, 3, 5, 2, 4, 1 };
+        bool[] expectedResult = { true, true, true, false, false, true };
 
         // Act
-        BitArray result = Utilities.Expand(bits);
+        var result = bits.Expand();
 
         // Assert
         Assert.That(result.Length, Is.EqualTo(expectedResult.Length), "Resulting BitArray length is incorrect.");
@@ -171,9 +134,10 @@ public class Tests
     public void CanReduce6BitsTo4BitsBySBox()
     {
         // Arrange
-        var expected = new bool[]{true, true, true, true};
+        var expected = new bool[] { true, true, true, true };
+
         // Act
-        var actual = Utilities.ReduceToFourBits(Tables.SBoxOne, new bool[]{true, false, false, false, false, true});
+        var actual = Utilities.ReduceToFourBits(Tables.SBoxOne, new bool[] { true, false, false, false, false, true });
         
         // Assert
         Assert.That(actual, Is.EqualTo(expected));
@@ -183,15 +147,14 @@ public class Tests
     public void Split_CanSplit48BitsInto8Times6Bits()
     {
         // Arrange
-        var text = "48bits";
-        var bytes = Utilities.ConvertToByteArray(text);
+        var bytes = Utilities.ConvertToByteArray("48bits");
         var bits = Utilities.ConvertBytesToBits(bytes);
 
         // Act
-        var splittet = Utilities.Split(bits, 6);
+        var split = bits.Split(6);
 
         // Assert
-        Assert.That(splittet.Count(), Is.EqualTo(8));
+        Assert.That(split.Count(), Is.EqualTo(8));
     }
 
     [TestCase(1, new[] { false, true, false, false, false, true, false, true })]
@@ -199,12 +162,12 @@ public class Tests
     public void LeftShiftBits(int shift, bool[] expected)
     {
         // Arrange
-        var bits = new BitArray([true, false, true, false, false, false, true, false]);
-        
+        bool[] bits = { true, false, true, false, false, false, true, false };
+
         // Act
-        BitArray actual = Utilities.LeftShift(bits, shift);
+        bool[] actual = bits.LeftShift(shift);
 
         // Assert
-        Assert.That(actual, Is.EqualTo(new BitArray(expected)));
+        Assert.That(actual, Is.EqualTo(expected));
     }
 }

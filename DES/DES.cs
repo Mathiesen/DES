@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Text;
 
 namespace DES;
 
@@ -14,35 +15,91 @@ public class DES
     public string Encrypt(string text, string key)
     {
         keySchedule.Run(key);
-        var blocks = Utilities.CreateBlocks(text);
-        List<BitArray> finalBlocks = new List<BitArray>();
+        var b = Encoding.UTF8.GetBytes(text);
+        var blocks = Utilities.CreateBlocks(b);
+        List<bool[]> finalBlocks = new List<bool[]>();
+        
+        foreach (var block in blocks)
+        { 
+            var permutatedBlock = Utilities.Permutate(block, Tables.InitialPermutation);
+            var (leftBits, rightBits) = permutatedBlock.Split();
+            
+            (leftBits, rightBits) = RunRounds(leftBits, rightBits, 0, keySchedule.Keys);
+            var concatenated = rightBits.Concatenate(leftBits);
+            var finalPermutation = Utilities.Permutate(concatenated, Tables.FinalPermutation);
+            finalBlocks.Add(finalPermutation);
+        }
+
+        return ConvertToBase64(finalBlocks);
+    }
+
+    public string Decrypt(string text, string key)
+    {
+        keySchedule.Keys.Clear();
+        keySchedule.Run(key);
+        
+        var keys = keySchedule.Keys;
+        keys.Reverse();
+        var b = Convert.FromBase64String(text);
+        var blocks = Utilities.CreateBlocks(b);
+        List<bool[]> finalBlocks = new List<bool[]>();
         
         foreach (var block in blocks)
         {
             var permutatedBlock = Utilities.Permutate(block, Tables.InitialPermutation);
-            var split = Utilities.Split(permutatedBlock);
-
-            var rightBits = split.right;
-            var leftBits = split.left;
-
+            var (leftBits, rightBits) = permutatedBlock.Split();
             
-            
-           var (l, r) = RunRounds(rightBits, leftBits, 0);
-           var concatenated = Utilities.Concatenate(leftBits, rightBits);
-           var finalPermutation = Utilities.Permutate(concatenated, Tables.FinalPermutation);
-           finalBlocks.Add(finalPermutation);
+            (leftBits, rightBits) = RunRounds(leftBits, rightBits, 0, keys);
+
+            var concatenated = rightBits.Concatenate(leftBits);
+            var finalPermutation = Utilities.Permutate(concatenated, Tables.FinalPermutation);
+            finalBlocks.Add(finalPermutation);
         }
 
-        int totalLenght = 0;
-        foreach (var bitArray in finalBlocks)
+        return ConvertToText(finalBlocks);
+    }
+
+    private (bool[] left, bool[] right) RunRounds(bool[] leftBits, bool[] rightBits, int index, List<bool[]> keys)
+    {
+        for (int i = 0; i < 16; i++)
         {
-            totalLenght += bitArray.Length;
+            var rightExpanded = FeistelFunction(rightBits, keys[i]);
+            var tempLeft = leftBits.Xor(rightExpanded);
+            
+            leftBits = rightBits;
+            rightBits = tempLeft;
         }
+
+        return (leftBits, rightBits);
+    }
+
+    private bool[] FeistelFunction(bool[] rightBits, bool[] keyScheduleKey)
+    {
+        var expanded = rightBits.Expand();
+        var xor = expanded.Xor(keyScheduleKey);
+
+        var splitBits = xor.Split(6).ToArray();
+
+        var concatenated = Utilities.ReduceToFourBits(Tables.SBoxOne, splitBits[0])
+            .Concat(Utilities.ReduceToFourBits(Tables.SBoxTwo, splitBits[1]))
+            .Concat(Utilities.ReduceToFourBits(Tables.SBoxThree, splitBits[2]))
+            .Concat(Utilities.ReduceToFourBits(Tables.SBoxFour, splitBits[3]))
+            .Concat(Utilities.ReduceToFourBits(Tables.SBoxFive, splitBits[4]))
+            .Concat(Utilities.ReduceToFourBits(Tables.SBoxSix, splitBits[5]))
+            .Concat(Utilities.ReduceToFourBits(Tables.SBoxSeven, splitBits[6]))
+            .Concat(Utilities.ReduceToFourBits(Tables.SBoxEight, splitBits[7])).ToArray();
         
-        var concatAll = new BitArray(totalLenght);
+        var pBox = Utilities.Permutate(concatenated, Tables.PermutationP);
+        return pBox;
+    }
+
+    private string ConvertToBase64(List<bool[]> bitBlocks)
+    {
+        var totalLength = bitBlocks.Sum(b => b.Length);
+        var concatAll = new bool[totalLength];
 
         int currentIndex = 0;
-        foreach (var block in finalBlocks)
+        foreach (var block in bitBlocks)
         {
             for (int i = 0; i < block.Length; i++)
             {
@@ -50,59 +107,40 @@ public class DES
             }
         }
 
-        var bytes = Utilities.ConvertToByteArray(concatAll);
+        var bytes = concatAll.ConvertToByteArray();
         return Convert.ToBase64String(bytes);
     }
 
-    private (BitArray left, BitArray right) RunRounds(BitArray rightBits, BitArray leftBits, int index)
+    private string ConvertToText(List<bool[]> bitBlocks)
     {
-        var function = RightBits(rightBits, keySchedule.Keys[index]);
-        var leftRightXor = leftBits.Xor(function);
-        var newLeft = rightBits;
-        var newRight = leftRightXor;
+        var totalLength = bitBlocks.Sum(b => b.Length);
+        var concatAll = new bool[totalLength];
 
-        while (index < keySchedule.Keys.Count - 1)
+        int currentIndex = 0;
+        foreach (var block in bitBlocks)
         {
-            index++;
-            (newLeft, newRight) = RunRounds(newRight, newLeft, index);
+            for (int i = 0; i < block.Length; i++)
+            {
+                concatAll[currentIndex++] = block[i];
+            }
         }
 
-        return (leftRightXor, rightBits);
+        var bytes = concatAll.ConvertToByteArray();
+        var unpaddedBytes = RemovePadding(bytes);
+        return System.Text.Encoding.ASCII.GetString(unpaddedBytes);
     }
-
-    private BitArray RightBits(BitArray splitRight, BitArray keyScheduleKey)
+    
+    private byte[] RemovePadding(byte[] bytes)
     {
-        var expanded = Utilities.Expand(splitRight);
-        var xor = expanded.Xor(keyScheduleKey);
-        
-        var splitBits = Utilities.Split(xor, 6);
+        int i = bytes.Length - 1;
+        while (i >= 0 && bytes[i] == 0)
+        {
+            i--;
+        }
 
-        var bools = splitBits.ToArray();
-        var sBoxOneOutput = Utilities.ReduceToFourBits(Tables.SBoxOne, bools[0]);
-        var sBoxTwoOutput = Utilities.ReduceToFourBits(Tables.SBoxTwo, bools[1]);
-        var sBoxThreeOutput = Utilities.ReduceToFourBits(Tables.SBoxThree, bools[2]);
-        var sBoxFourOutput = Utilities.ReduceToFourBits(Tables.SBoxFour, bools[3]);
-        var sBoxFiveOutput = Utilities.ReduceToFourBits(Tables.SBoxFive, bools[4]);
-        var sBoxSixOutput = Utilities.ReduceToFourBits(Tables.SBoxSix, bools[5]);
-        var sBoxSevenOutput = Utilities.ReduceToFourBits(Tables.SBoxSeven, bools[6]);
-        var sBoxEightOutput = Utilities.ReduceToFourBits(Tables.SBoxEight, bools[7]);
+        var result = new byte[i + 1];
+        Array.Copy(bytes, result, i + 1);
 
-        var concatenated = sBoxOneOutput
-            .Concat(sBoxTwoOutput)
-            .Concat(sBoxThreeOutput)
-            .Concat(sBoxFourOutput)
-            .Concat(sBoxFiveOutput)
-            .Concat(sBoxSixOutput)
-            .Concat(sBoxSevenOutput)
-            .Concat(sBoxEightOutput).ToArray();
-
-        var permutatedP = Utilities.Permutate(new BitArray(concatenated), Tables.PermutationP);
-        
-        return permutatedP;
-    }
-
-    private void LeftBits(BitArray splitLeft)
-    {
-        throw new NotImplementedException();
+        return result;
     }
 }

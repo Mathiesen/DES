@@ -4,32 +4,31 @@ namespace DES;
 
 public class KeySchedule
 {
-    public Dictionary<int, BitArray> Keys = new Dictionary<int, BitArray>();
-    
-    
-    
-
+    public List<bool[]> Keys = new List<bool[]>();
 
     public void Run(string key)
     {
-        var permutatedKey = Utilities.Permutate(key, Tables.PermutedChoiceOne);
-        var splitedKey = Utilities.Split(permutatedKey);
+        Keys.Clear();
+        var keyBits = Utilities.StringToBitArray(key);
+        var permutatedKey = Utilities.Permutate(keyBits, Tables.PermutedChoiceOne);
+
+        var splitedKey = permutatedKey.Split();
         var leftShifted = splitedKey.left;
         var rightShifted = splitedKey.right;
         
         for (var i = 0; i < Tables.Shifts.Length; i++)
         {
-            leftShifted = Utilities.LeftShift(leftShifted, Tables.Shifts[i]);
-            rightShifted = Utilities.LeftShift(rightShifted, Tables.Shifts[i]);
+            leftShifted = leftShifted.LeftShift(Tables.Shifts[i]);
+            rightShifted = rightShifted.LeftShift(Tables.Shifts[i]);
             
             var transformed = Transform(leftShifted, rightShifted);
-            Keys.Add(i, transformed);
+            Keys.Add(transformed);
         }
     }
 
-    private BitArray Transform(BitArray left, BitArray right)
+    private bool[] Transform(bool[] left, bool[] right)
     {
-        var concatenatedKey = Utilities.Concatenate(left, right);
+        var concatenatedKey = left.Concatenate(right);
         var permutatedKey = Utilities.Permutate(concatenatedKey, Tables.PermutedChoiceTwo);
 
         return permutatedKey;
